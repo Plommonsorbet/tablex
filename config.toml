@@ -1,0 +1,19 @@
+[view.ranger]
+labels = ["keys", "action"]
+regexes = ['^\s*(map)\s+(?P<keys>\S+)\s+(?P<action>.*)$']
+file = "/home/isak/.config/ranger/rc.conf"
+
+[view.tig]
+labels = ["mode", "keys", "action", "comment"]
+regexes = [ 'bind\s+(?P<mode>\S+)\s+(?P<keys>\S+)\s+(?P<action>.*)(?P<comment>#.*$|$)' ]
+file = "/home/isak/.config/tig/config"
+
+
+[view.nvim]
+labels = ["mode", "keys", "action"]
+regexes = [ 
+    '^\s*(?P<mode>imap|inoremap|nmap|nnoremap|map|noremap|tnoremap|tmap|vmap|vnoremap|xmap|xnoremap)(\s+<silent>\s+|\s+<expr>\s+|\s+)(?P<keys>\S+)\s+(?P<action>.*)'
+]
+file = "/home/isak/.config/nvim/init.vim"
+
+
