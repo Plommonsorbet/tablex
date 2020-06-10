@@ -10,7 +10,6 @@ cargo build --release
 #+END_SRC
 
 ** Usage
-*** Basic examples:
 **** Use file as input:
 #+BEGIN_SRC sh
 $ tablex "alias\s+(?P<alias>[^=]+)=['\"](?P<command>.*)['\"]$" -f ~/.zshrc
