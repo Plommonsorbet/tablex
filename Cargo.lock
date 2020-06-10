@@ -667,7 +667,6 @@ dependencies = [
  "regex",
  "serde",
  "structopt",
- "toml",
 ]
 
 [[package]]
@@ -697,15 +696,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
 dependencies = [
  "lazy_static",
-]
-
-[[package]]
-name = "toml"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01d1404644c8b12b16bfcffa4322403a91a451584daaaa7c28d3152e6cbc98cf"
-dependencies = [
- "serde",
 ]
 
 [[package]]

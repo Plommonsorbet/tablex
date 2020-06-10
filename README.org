@@ -1,0 +1,95 @@
+* Tablex
+Generate structured table from unstructured text based on named regex capture groups.
+** Description
+Tablex aims to allow the regex ninja to quickly give structure to unformatted data,
+either to display it or to continue processing with another tool such as xsv.
+
+** Installation
+#+BEGIN_SRC sh
+cargo build --release
+#+END_SRC
+
+** Usage
+*** Basic examples:
+**** Use file as input:
+#+BEGIN_SRC sh
+$ tablex "alias\s+(?P<alias>[^=]+)=['\"](?P<command>.*)['\"]$" -f ~/.zshrc
+#+END_SRC sh
+**** Use stdin as input:
+#+BEGIN_SRC sh
+$ cat ~/.zshrc |  tablex "alias\s+(?P<alias>[^=]+)=['\"](?P<command>.*)['\"]$"
+#+END_SRC sh
+
+*** Example: init.vim
+A more advanced example of parsing the neovim configuration file.
+#+BEGIN_SRC sh
+$ tablex '^\s*(?P<mode>imap|inoremap|nmap|nnoremap|map|noremap|tnoremap|tmap|vmap|vnoremap|xmap|xnoremap)(\s+<silent>\s+|\s+<expr>\s+|\s+)(?P<keys>\S+)\s+(?P<action>.*)' -f ~/.config/nvim/init.vim 
+#+END_SRC sh
+#+BEGIN_EXAMPLE
++----------+------------------------+----------------------------------------------------------------+
+| mode     | keys                   | action                                                         |
++==========+========================+================================================================+
+| imap     | <C-l>                  | <Plug>(coc-snippets-expand)                                    |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | Q                      | <Nop>                                                          |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>G              | :Tig<CR>                                                       |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>m              | :MagitOnly<CR>                                                 |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gs             | :Gstatus<CR>                                                   |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>ge             | :Gedit<CR>                                                     |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gp             | :Gpull nnoremap <silent> <leader>gu :Gpush                     |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gf             | :Gfetch                                                        |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gs             | :Gstatus<CR>                                                   |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gc             | :Gcommit<CR>                                                   |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>ga             | :Gcommit --amend<CR>                                           |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gl             | :Glog<CR>                                                      |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gm             | :Gmove<space>                                                  |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | <leader>gd             | :Gdelete<space>                                                |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | :                      | q:                                                             |
++----------+------------------------+----------------------------------------------------------------+
+| nnoremap | ?                      | q?i                                                            |
++----------+------------------------+----------------------------------------------------------------+
+#+END_EXAMPLE
+
+
+*** Example: /etc/passwd
+Create a simple more readable table from the /etc/passwd file.
+
+#+BEGIN_SRC sh
+$ tablex '(?P<user>[^:]+):[a-zA-z]:(?P<uid>[^:]+):(?P<gid>[^:]+):(?P<info>[^:]+):(?P<home>[^:])(?P<shell>[^:]+)' -f /etc/passwd 
+#+END_SRC sh
+#+BEGIN_EXAMPLE
++------------+-------+-------+--------------------------------------+------+-----------+
+| user       | uid   | gid   | info                                 | home | shell     |
++============+=======+=======+======================================+======+===========+
+| root       | 0     | 0     | System administrator                 | /    | root      |
++------------+-------+-------+--------------------------------------+------+-----------+
+| messagebus | 4     | 4     | D-Bus system message bus daemon user | /    | run/dbus  |
++------------+-------+-------+--------------------------------------+------+-----------+
+| polkituser | 28    | 65534 | PolKit daemon                        | /    | var/empty |
++------------+-------+-------+--------------------------------------+------+-----------+
+| sshd       | 998   | 65534 | SSH privilege separation user        | /    | var/empty |
++------------+-------+-------+--------------------------------------+------+-----------+
+| kasi       | 1000  | 65534 | Cool cool cool...                    | /    | home/kasi |
++------------+-------+-------+--------------------------------------+------+-----------+
+| nobody     | 65534 | 65534 | Unprivileged account (don't use!)    | /    | var/empty |
++------------+-------+-------+--------------------------------------+------+-----------+
+#+END_EXAMPLE
+
+
+** Roadmap
+*** TODO Testing
+*** TODO More installation methods.
+*** TODO Get some preliminary benchmarks.

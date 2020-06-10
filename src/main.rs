@@ -1,146 +1,111 @@
-use prettytable::{cell, row, Cell, Row, Table};
-use rayon::prelude::*; use regex::{Captures, Regex};
-use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fs::read_to_string;
-use std::env;
-use std::path::{PathBuf, Path};
+use prettytable::{Cell, Row, Table};
+use regex::{self, Regex};
+use std::fs;
+use structopt::clap::arg_enum;
+use rayon::prelude::*;
+use std::io::{self, Read};
+use std::path::PathBuf;
 use structopt::{clap::AppSettings, StructOpt};
 
-type Result<T> = std::result::Result<T, std::io::Error>;
 
-#[derive(Deserialize, Serialize, Debug)]
-struct Config {
-    view: BTreeMap<String, View>,
+fn parse_regex_str(src: &str) -> Result<Regex, regex::Error> {
+    Regex::new(src)
 }
-#[derive(Deserialize, Serialize, Debug)]
-struct View {
-    regex: String,
-    file: String,
-}
-impl Config {
-    pub fn from(path: &Path) -> Result<Self> {
-        let config_str = read_to_string(path)?;
-        Ok(toml::from_str(&config_str)?)
+
+fn parse_output_format(src: &str) -> Result<OutputFormat, String> {
+    match src.to_lowercase().as_ref() {
+        "csv" => Ok(OutputFormat::Csv),
+        "ascii" => Ok(OutputFormat::Ascii),
+        _ => Err(String::from("Outputformat does not exists!")),
     }
 }
 
-#[derive(Debug, StructOpt)]
-#[structopt(setting = AppSettings::SubcommandsNegateReqs, author)]
-enum CliSubCommand {
-    View {
-        name: String
+
+arg_enum! {
+    #[derive(Debug)]
+    enum OutputFormat {
+	Csv,
+	Ascii,
     }
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(StructOpt, Debug)]
+#[structopt(setting = AppSettings::ColoredHelp, setting = AppSettings::NextLineHelp, author)]
 struct Cli {
-    regex: Option<String>,
+    #[structopt(parse(try_from_str = parse_regex_str))]
+    regex: Regex,
 
-    input_file: Option<PathBuf>,
-    
-    #[structopt(subcommand)]
-    cmd: Option<CliSubCommand>
+    #[structopt(short = "f", long = "file")]
+    file: Option<PathBuf>,
 
+    /// Table output format. Possible formats: [csv, ascii]
+    #[structopt(short = "o", long = "output", default_value = "ascii", parse(try_from_str = parse_output_format))]
+    output_format: OutputFormat,
 }
 
-fn main() {
-    if let Err(error) = try_main() {
-        eprintln!("{:?}", error);
-        std::process::exit(1);
-    }
+fn grab_stdin() -> io::Result<String> {
+    let mut buffer = String::new();
+    io::stdin().read_to_string(&mut buffer)?;
+    Ok(buffer)
 }
 
-fn get_labels(re: &Regex) -> Vec<String> {
+fn column_headers(re: &Regex) -> Vec<String> {
     re.capture_names()
         .into_iter()
         .flatten()
         .map(|s| s.to_string())
         .collect()
 }
-fn get_named<'a>(cap: &'a Captures, label: &str) -> &'a str {
+
+
+fn get_named<'a>(cap: &'a regex::Captures, label: &str) -> &'a str {
     &cap.name(label).map_or("", |m| m.as_str())
 }
 
-fn get_config_path() -> PathBuf {
-    let base_dir_str = match env::var("XDG_CONFIG_HOME") {
-        Ok(path) => path,
-        Err(_) => env::var("HOME").expect("No environment variable set for $HOME")
-    };
-    PathBuf::from(base_dir_str).join("tablex/config.toml")
-}
-struct RegexTable {
-    re: Regex,
-    title: String,
-    labels: Vec<String>,
-}
-
-impl RegexTable {
-    fn new(regex_str: &str, title: String) -> Self {
-        let re: Regex = Regex::new(regex_str).expect("regex does not compile!");
-        Self {
-            labels: get_labels(&re),
-            re,
-            title,
-        }
-    }
-    fn ascii(&self, content: String) {
-        let mut tbl = Table::new();
-
-        tbl.add_row(row![self.title]);
-        tbl.add_row(Row::new(
-            self.labels
-                .iter()
-                .map(|l| Cell::new(l))
-                .collect::<Vec<Cell>>(),
-        ));
-
-        let rows: Vec<Row> = content.par_lines().map(|line| self.re.captures(line) )
+fn main() {
+    let cli = Cli::from_args();
+    let labels = column_headers(&cli.regex);
+    let rows: Vec<Row> = match &cli.file {
+        Some(file) => fs::read_to_string(file)
+            .unwrap()
+            .par_lines()
+            .map(|line| cli.regex.captures(line))
             .flatten()
-            .map(|cap|
-                    Row::new(self.labels
+            .map(|cap| {
+                Row::new(
+                    labels
                         .iter()
                         .map(|label| Cell::new(get_named(&cap, &label)))
-                        .collect::<Vec<Cell>>())
-            ).collect();
-
-        for row in rows {
-            tbl.add_row(row);
-        };
-
-        tbl.printstd();
-    }
-}
-
-fn try_main() -> Result<()> {
-    let config_path = get_config_path();
-    let config = Config::from(&config_path)?;
-
-    let cli = Cli::from_args();
-
-
-    if let Some(subcmd) = cli.cmd {
-        match subcmd {
-            CliSubCommand::View {
-                name,
-            } => {
-                let view = config.view.get(&name).expect("ERROR: No views by that name found");
-                
-                let content = read_to_string(&view.file)?;
-                let tbl = RegexTable::new(&view.regex, name.clone());
-
-                tbl.ascii(content);
-                
-            }
-        };
-    } else {
-        if let (Some(regex), Some(file)) = (&cli.regex, &cli.input_file) {
-                let content = read_to_string(file)?;
-                let tbl = RegexTable::new(regex, "".to_string());
-
-                tbl.ascii(content);
-        }
-        
+                        .collect::<Vec<Cell>>(),
+                )
+            })
+            .collect(),
+        None => grab_stdin()
+            .unwrap()
+            .par_lines()
+            .map(|line| cli.regex.captures(&line))
+            .flatten()
+            .map(|cap| {
+                Row::new(
+                    labels
+                        .iter()
+                        .map(|label| Cell::new(get_named(&cap, &label)))
+                        .collect::<Vec<Cell>>(),
+                )
+            })
+            .collect(),
     };
-    Ok(())
+    let mut tbl = Table::init(rows);
+
+    let titles: Row = labels.iter().map(|label| Cell::new(label)).collect();
+    tbl.set_titles(titles);
+
+    match &cli.output_format {
+        OutputFormat::Csv => {
+            tbl.to_csv(io::stdout().lock()).unwrap();
+        }
+        OutputFormat::Ascii => {
+            tbl.printstd();
+        }
+    };
 }
