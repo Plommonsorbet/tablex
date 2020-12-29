@@ -1,5 +1,6 @@
 * Tablex
 Generate structured table from unstructured text based on named regex capture groups.
+
 ** Description
 Tablex aims to allow the regex ninja to quickly give structure to unformatted data,
 either to display it or to continue processing with another tool such as xsv.
